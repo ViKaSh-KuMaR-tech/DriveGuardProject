@@ -1,137 +1,240 @@
-# DriveGuard - Phase 1
+# 🚗 DriveGuard — AI-Powered Driver Monitoring & Road Safety System
 
-Real-time, webcam-based driver monitoring: drowsiness, yawning, distraction, driver absence and phone use, combined into a risk score with spoken warnings.
+**Making every journey safer through real-time computer vision and intelligent driver monitoring.**
 
-> Phase 1 covers milestones 1-8. SQLite trip storage and the Streamlit dashboard/report (milestones 9-10) are **not** included yet.
+DriveGuard is an AI-powered driver monitoring system designed to detect signs of driver fatigue, distraction, and potentially unsafe driving behavior using computer vision. It analyzes visual cues such as eye closure, head position, yawning, and mobile phone usage to help identify situations that may compromise road safety.
 
-## 1. Project overview
-DriveGuard reads frames from a webcam, extracts 478 facial landmarks with MediaPipe, derives several geometric measurements (EAR, MAR, head angles), runs a YOLO model for phones, and feeds time-filtered results into a safety engine that produces a risk level, a score and (when needed) a spoken alert.
+By combining real-time video processing, modular detection components, and audio alerts, DriveGuard aims to transform an ordinary camera into an intelligent driver-safety assistant.
 
-## 2. Features
-- Live webcam view with a readable HUD
-- Primary-driver selection (largest face) with 0 / 1 / many faces handled
-- Drowsiness via Eye Aspect Ratio (EAR) + persistence timer
-- Yawning via Mouth Aspect Ratio (MAR) + persistence timer
-- Head pose (yaw / pitch / roll) via `solvePnP`, with distraction timer and a calibration key
-- Driver-absence detection with a grace period
-- YOLO (Ultralytics) phone detection with boxes and confidence
-- Weighted, smoothed risk engine: SAFE / LOW / MEDIUM / HIGH + safety score
-- Non-blocking audio alerts with cooldowns and per-event messages
-- Every threshold lives in `config.py`
+> **Vision:** Detect risks early. Alert intelligently. Drive safely.
 
-## 3. Architecture
-```
+---
+
+## ✨ Key Features
+
+### 👁️ Drowsiness Detection
+
+* Monitors eye-related indicators to identify possible signs of fatigue.
+* Analyzes facial features and eye activity.
+* Helps identify prolonged eye closure and potential microsleep events.
+
+### 📱 Mobile Phone Detection
+
+* Includes a dedicated phone-detection module.
+* Helps identify potentially distracting mobile phone usage while driving.
+* Supports integration into the overall driver-safety pipeline.
+
+### 🥱 Yawning & Fatigue Indicators
+
+* Analyzes mouth movement and opening patterns.
+* Helps identify yawning as a potential indicator of fatigue.
+* Combines multiple visual indicators for a broader assessment of driver alertness.
+
+### 🧠 Head Pose & Face Analysis
+
+* Tracks facial orientation and head position.
+* Supports detection of possible distraction caused by looking away from the road.
+* Uses modular face and head-pose analysis components.
+
+### 🔊 Intelligent Audio Alerts
+
+* Provides audio-alert functionality for detected safety conditions.
+* Supports non-blocking alert processing so that audio playback does not unnecessarily interrupt the main video-processing loop.
+* Includes operating-system-based speech options and fallback alerts.
+
+### 🛡️ Centralized Safety Engine
+
+* Brings safety-related detection logic into a dedicated module.
+* Helps organize monitoring rules and safety responses.
+* Provides a foundation for extending the system with additional risk indicators.
+
+### 🖥️ Real-Time Visual Monitoring
+
+* Includes video-processing and overlay components.
+* Organizes detection results for visual presentation.
+* Uses a modular architecture to support future interface improvements.
+
+---
+
+## 🏗️ System Architecture
+
+DriveGuard is organized into separate modules to improve maintainability, debugging, and future development.
+
+```text
 DriveGuard/
-├── main.py              camera loop, keys, window, audio hookup
-├── pipeline.py          runs all detectors + safety engine for one frame
-├── config.py            ALL thresholds/weights/paths (frozen dataclasses)
-├── requirements.txt
-├── detection/
-│   ├── face_detector.py   MediaPipe Face Mesh, primary-face choice
-│   ├── eye_detector.py    EAR + drowsiness timer
-│   ├── mouth_detector.py  MAR + yawn timer
-│   ├── head_pose.py       solvePnP, yaw/pitch/roll, distraction timer
-│   ├── presence.py        driver-absent logic
-│   └── phone_detector.py  YOLO phone detection
-├── safety/safety_engine.py  weighted risk score + alert selection
-├── alerts/audio_alert.py    threaded text-to-speech with cooldowns
-├── ui/overlay.py            all OpenCV drawing
-├── utils/geometry.py        EAR/MAR maths (pure functions)
-├── utils/timing.py          PersistenceTimer (temporal filtering)
-└── models/                  put yolov8n.pt here
+│
+├── main.py                 # Application entry point
+├── config.py               # Configuration
+├── pipeline.py             # Detection and processing pipeline
+├── requirements.txt        # Python dependencies
+├── README.md               # Project documentation
+│
+├── alerts/                 # Audio and alert handling
+├── detection/              # Driver and object detection
+├── models/                 # Model assets
+├── safety/                 # Safety monitoring logic
+├── ui/                     # Visual overlays and presentation
+└── utils/                  # Supporting utilities
 ```
-Data flow per frame: `frame -> FaceDetector -> landmarks -> {Eye, Mouth, HeadPose, Presence}`, `frame -> PhoneDetector`, then all persistent flags -> `SafetyEngine -> FrameAnalysis -> overlay + audio`. Detectors never import each other; only `pipeline.py` wires them together.
 
-## 4-6. Installation and virtual environment
-Use **Python 3.9 - 3.12** (the pinned MediaPipe 0.10.14 has no wheels for 3.13+).
+**Processing flow**
 
-Windows (PowerShell):
-```powershell
-cd DriveGuard
-py -3.12 -m venv .venv
-.venv\Scripts\Activate.ps1
+```text
+Camera / Video Input
+        ↓
+Frame Acquisition
+        ↓
+Face & Visual Feature Analysis
+        ↓
+Drowsiness / Head Pose / Phone Analysis
+        ↓
+Safety Evaluation
+        ↓
+Visual Feedback + Audio Alerts
+```
+
+*The exact execution flow and available detectors depend on the configured modules and models.*
+
+---
+
+## 🛠️ Technology Stack
+
+| Technology                    | Purpose                                      |
+| ----------------------------- | -------------------------------------------- |
+| Python                        | Core application logic                       |
+| OpenCV                        | Video capture and image processing           |
+| Computer Vision               | Visual analysis of driver behavior           |
+| Detection Models              | Object and phone detection, where configured |
+| Threading                     | Background processing for supported tasks    |
+| Operating-System Speech Tools | Audio warnings and spoken alerts             |
+
+The exact dependencies and model requirements are defined by the implementation and `requirements.txt`.
+
+---
+
+## 🚀 Getting Started
+
+### 1. Prerequisites
+
+* Python 3.10 or a compatible version for the project's dependencies
+* Git
+* A webcam or supported video input
+* The required detection models and model weights, if applicable
+
+### 2. Clone the Repository
+
+```bash
+git clone https://github.com/YOUR_USERNAME/DriveGuardProject.git
+cd DriveGuardProject
+```
+
+Replace `YOUR_USERNAME` with your GitHub username.
+
+### 3. Create a Virtual Environment
+
+**Windows:**
+
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+**Linux / macOS:**
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### 4. Install Dependencies
+
+```bash
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
-Linux / macOS:
-```bash
-cd DriveGuard
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-```
-(`ultralytics` installs PyTorch, so the first install is large.)
 
-## 7. YOLO model setup
-Download the pretrained COCO model (class `cell phone`) into `models/`:
-```bash
-# Linux / macOS
-mkdir -p models && curl -L -o models/yolov8n.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt
-# Windows PowerShell
-mkdir models -Force; Invoke-WebRequest -Uri https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt -OutFile models\yolov8n.pt
-```
-Alternative: `python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')"` then move the downloaded file into `models/`.
-Any COCO-trained Ultralytics model works (`--model path/to/model.pt`, or edit `PhoneConfig.model_path`). If the file is missing, DriveGuard prints these instructions and exits; use `--no-phone` to run without it.
+Some detection modules may require additional model weights or system-specific dependencies.
 
-## 8. Run
+### 5. Run DriveGuard
+
 ```bash
 python main.py
 ```
-Options: `--camera 1`, `--model path.pt`, `--no-phone`, `--no-audio`.
 
-## 9. Keyboard controls
-| Key | Action |
-|---|---|
-| `q` / `Esc` | Quit (camera and windows are released) |
-| `c` | Calibrate head pose: current pose becomes "looking at the road" |
-| `l` | Toggle landmark dots |
-| `m` | Mute / unmute audio |
+Ensure the camera is connected and any required models are available. If startup fails, review the error message and verify the installed dependencies and model paths.
 
-Press `c` once while looking straight ahead from your normal seated position - a dashboard camera rarely sits exactly in front of the driver.
+---
 
-## 10. Configuration
-Open `config.py`. Each section is a dataclass: `EyeConfig.ear_threshold`, `MouthConfig.yawn_duration_s`, `HeadPoseConfig.yaw_max_deg`, `PresenceConfig.absence_grace_s`, `PhoneConfig.confidence`, `SafetyConfig.weights`, `AudioConfig.per_event_cooldown_s`, and so on. Durations are in **seconds**, so behaviour does not depend on FPS. Thresholds are starting points: tune them for your camera, lighting and face (people with narrow eyes or glasses may need a lower `ear_threshold`).
+## 📂 Core Modules
 
-## 11. How EAR works
-For six landmarks around an eye (p1 outer corner, p4 inner corner, p2/p3 upper lid, p6/p5 lower lid):
+| Module        | Responsibility                        |
+| ------------- | ------------------------------------- |
+| `main.py`     | Starts the application                |
+| `config.py`   | Stores configuration settings         |
+| `pipeline.py` | Coordinates processing components     |
+| `alerts/`     | Audio and alert-related functionality |
+| `detection/`  | Visual detection components           |
+| `models/`     | Model files and related assets        |
+| `safety/`     | Safety evaluation and rules           |
+| `ui/`         | Visual feedback and overlays          |
+| `utils/`      | Shared helper functions               |
 
-`EAR = ( |p2-p6| + |p3-p5| ) / ( 2 * |p1-p4| )`
+---
 
-An open eye gives roughly 0.25-0.35; when it closes the vertical distances collapse and EAR drops toward 0. Dividing by eye width makes it distance-independent. EAR of both eyes is averaged. EAR below `ear_threshold` means "closed", but **drowsy** is only declared after the eyes stay closed for `closed_duration_s` (1.0 s), so ordinary blinks (0.1-0.4 s) are ignored. The timer resets as soon as the eyes open.
+## 🎯 Project Goals
 
-## 12. How MAR works
-Using the inner-lip landmarks (two corners, three upper/lower pairs):
+* Detect visual indicators associated with driver fatigue.
+* Identify potential distractions through computer vision.
+* Provide timely, understandable warnings.
+* Keep processing modules independent and maintainable.
+* Build a foundation for more comprehensive driver monitoring.
 
-`MAR = ( |u1-l1| + |u2-l2| + |u3-l3| ) / ( 3 * |left corner - right corner| )`
+---
 
-Closed mouth ~0-0.1, talking ~0.2-0.4, wide yawn above ~0.55. A yawn is declared only if MAR stays above `mar_threshold` for `yawn_duration_s` (1.5 s).
+## 🔮 Future Roadmap
 
-## 13. How head-pose detection works
-Six landmarks (nose tip, chin, outer eye corners, mouth corners) are matched to a generic 3-D face model with `cv2.solvePnP`, using an approximate camera (focal length = image width, centre principal point, no distortion). This returns a rotation vector -> `cv2.Rodrigues` -> rotation matrix -> `cv2.RQDecomp3x3` -> pitch (up/down), yaw (left/right), roll (tilt). Angles are smoothed and reported relative to the calibrated neutral pose. If |yaw|, |pitch| or |roll| exceed their limits for `distraction_duration_s` (2.0 s), the driver is "distracted". The yellow line on the video shows where the face points.
+Potential future improvements include:
 
-## 14. How phone detection works
-A pretrained YOLO COCO model is run on every Nth frame (`inference_every_n_frames`, default 3) filtered to the `cell phone` class (resolved by name, not hard-coded id). Boxes and confidence are drawn. A phone must be seen for `use_duration_s` (0.5 s) to count as "in use", and the status is held for `release_grace_s` (1.0 s) to bridge missed detections. Note: this detects a phone *visible in the frame*, not proof that it is being used.
+* [ ] Driver risk scoring based on multiple indicators.
+* [ ] Calibration for different drivers and lighting conditions.
+* [ ] Improved low-light and nighttime performance.
+* [ ] Detection confidence visualization.
+* [ ] Session summaries and fatigue-event logging.
+* [ ] Configurable alert thresholds.
+* [ ] Performance optimization for lower-end hardware.
+* [ ] Expanded testing across different camera positions and driving conditions.
 
-## 15. Safety-score logic
-Each time-filtered behaviour adds risk points (defaults): drowsy 60, absent 60, phone 45, distracted 40, yawning 20 (capped at 100). The total is smoothed (rises with a 0.5 s time constant, falls with 2 s) and mapped to levels: `<5` SAFE, `5-25` LOW, `25-50` MEDIUM, `>=50` HIGH. **Safety score = 100 - risk.** When the level reaches MEDIUM the highest-priority active behaviour (drowsy > phone > distracted > absent > yawning) is spoken, subject to cooldowns (3 s between any alerts, 10 s before the same one repeats). Examples: yawning alone = LOW (silent); phone alone = MEDIUM; drowsy alone = HIGH. Edit `SafetyConfig` to change it.
+---
 
-## 16. Known limitations
-- Generic 3-D face model and guessed camera intrinsics make head angles approximate; use `c` to calibrate.
-- EAR/MAR thresholds vary by person; glasses, sunglasses, masks and strong backlight reduce accuracy. Sunglasses will look like closed eyes.
-- Low light / IR-less webcams degrade MediaPipe. A real vehicle needs an IR camera.
-- Phone detection depends on YOLOv8n accuracy and camera view; a phone held below the frame or against the ear may be missed. Phone *presence*, not *usage*, is detected.
-- Absence and drowsiness can overlap: a driver whose face leaves the frame is reported absent.
-- Primary driver = largest face; a passenger leaning close could be chosen.
-- CPU-only YOLO lowers FPS; increase `inference_every_n_frames` or use a GPU.
-- Audio uses OS text-to-speech; Linux needs `espeak-ng`/`spd-say` (or falls back to beeps).
-- Not a certified safety device; for education/prototyping only.
+## ⚠️ Limitations & Safety Disclaimer
 
-## Troubleshooting
-**Webcam:** "Cannot open webcam" -> close Zoom/Teams/browser tabs using it, try `--camera 1`, grant camera permission (Windows Settings > Privacy > Camera; macOS System Settings > Privacy > Camera for your terminal/IDE). Black or very slow frames on Windows -> the DirectShow backend is already used; try a different USB port.
+DriveGuard is an experimental driver-monitoring project and is **not a certified automotive safety system**.
 
-**MediaPipe:** `module 'mediapipe' has no attribute 'solutions'` or install failure -> use Python 3.9-3.12 and `pip install mediapipe==0.10.14` with `numpy<2`. If you see `cv2` oddities after installing both `opencv-python` and `opencv-contrib-python`: `pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless` then `pip install "opencv-contrib-python>=4.8,<4.11"`. No landmarks drawn -> improve lighting, face the camera, remove the mask.
+Computer-vision results can be affected by lighting, camera placement, occlusion, eyewear, and model accuracy. A detected behavior does not necessarily prove that a driver is fatigued or distracted.
 
-**YOLO:** "model file not found" -> follow section 7. Slow FPS -> raise `inference_every_n_frames`, lower `image_size` (e.g. 416), or set `device="cuda:0"` if you have an NVIDIA GPU with CUDA PyTorch. No phone detected -> lower `confidence` to ~0.3, hold the phone clearly in view.
+Do not rely on this software as a replacement for attentive driving, adequate rest, or certified vehicle safety equipment. Always follow local traffic laws and keep your attention on the road.
 
-**Audio:** No sound on Linux -> `sudo apt install espeak-ng` (or `speech-dispatcher`). Windows `pyttsx3` errors -> `pip install --force-reinstall pyttsx3 pywin32`. macOS uses `say`. You will hear beeps if no speech engine exists. Use `m` to mute, `--no-audio` to disable. Alerts repeat no more often than the cooldowns in `AudioConfig`.
+---
+
+## 👨‍💻 Contributing
+
+Contributions, bug reports, testing, and suggestions are welcome.
+
+1. Fork the repository.
+2. Create a feature branch.
+3. Make your changes and test them.
+4. Submit a pull request describing the improvement.
+
+---
+
+## 📜 License
+
+No license has been specified yet. Add a `LICENSE` file before granting others explicit permission to reuse, modify, or redistribute this project.
+
+---
+
+## ⭐ Support the Project
+
+If you find DriveGuard interesting, consider starring the repository and sharing ideas for improving driver safety through computer vision.
+
+**DriveGuard — See the risk. Sound the warning. Make the journey safer.**
