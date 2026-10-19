@@ -5,14 +5,28 @@ Set-Location -LiteralPath $PSScriptRoot
 $launcher = Get-Command py -ErrorAction SilentlyContinue
 if ($launcher) {
     $python = $launcher.Source
-    $pythonArgs = @("-3")
+    $pythonArgs = $null
+    foreach ($version in @("3.12", "3.11", "3.10", "3.9")) {
+        & $python "-$version" --version *> $null
+        if ($LASTEXITCODE -eq 0) {
+            $pythonArgs = @("-$version")
+            break
+        }
+    }
+    if ($null -eq $pythonArgs) {
+        throw "Python 3.9 through 3.12 is required. Install a supported Python version and try again."
+    }
 } else {
     $python = (Get-Command python -ErrorAction Stop).Source
+    $versionOutput = & $python --version
+    if ($LASTEXITCODE -ne 0 -or $versionOutput -notmatch "Python 3\.(9|10|11|12)(\.|$)") {
+        throw "Python 3.9 through 3.12 is required. Install a supported Python version and try again."
+    }
     $pythonArgs = @()
 }
 
 & $python @pythonArgs --version
-if ($LASTEXITCODE -ne 0) { throw "Python 3 could not be started." }
+if ($LASTEXITCODE -ne 0) { throw "Python could not be started." }
 
 $venvPython = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
 if (-not (Test-Path -LiteralPath $venvPython)) {
