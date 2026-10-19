@@ -116,7 +116,7 @@ The exact dependencies and model requirements are defined by the implementation 
 
 ### 1. Prerequisites
 
-* Python 3.10 or a compatible version for the project's dependencies
+* Python 3.9 through 3.13 (the Windows launcher prefers Python 3.13 when available)
 * Git
 * A webcam or supported video input
 * The required detection models and model weights, if applicable
