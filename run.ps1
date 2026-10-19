@@ -6,7 +6,7 @@ $launcher = Get-Command py -ErrorAction SilentlyContinue
 if ($launcher) {
     $python = $launcher.Source
     $pythonArgs = $null
-    foreach ($version in @("3.12", "3.11", "3.10", "3.9")) {
+    foreach ($version in @("3.13", "3.12", "3.11", "3.10", "3.9")) {
         try {
             $versionOutput = & $python "-$version" --version 2>$null
         } catch {
@@ -18,13 +18,13 @@ if ($launcher) {
         }
     }
     if ($null -eq $pythonArgs) {
-        throw "Python 3.9 through 3.12 is required. Install a supported Python version and try again."
+        throw "Python 3.9 through 3.13 is required. Install a supported Python version and try again."
     }
 } else {
     $python = (Get-Command python -ErrorAction Stop).Source
     $versionOutput = & $python --version
     if ($LASTEXITCODE -ne 0 -or $versionOutput -notmatch "Python 3\.(9|10|11|12)(\.|$)") {
-        throw "Python 3.9 through 3.12 is required. Install a supported Python version and try again."
+        throw "Python 3.9 through 3.13 is required. Install a supported Python version and try again."
     }
     $pythonArgs = @()
 }
