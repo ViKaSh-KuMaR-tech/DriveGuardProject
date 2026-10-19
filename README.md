@@ -238,3 +238,14 @@ No license has been specified yet. Add a `LICENSE` file before granting others e
 If you find DriveGuard interesting, consider starring the repository and sharing ideas for improving driver safety through computer vision.
 
 **DriveGuard — See the risk. Sound the warning. Make the journey safer.**
+
+
+## Run on Windows with one command
+
+From PowerShell in the repository folder, run:
+
+```powershell
+.\run.ps1
+```
+
+The script creates a local virtual environment, installs the requirements, downloads the default YOLO phone-detection weights if needed, and starts DriveGuard. The first run needs an internet connection. If PowerShell blocks scripts, run it with: `powershell -ExecutionPolicy Bypass -File .\run.ps1`.
