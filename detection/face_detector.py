@@ -1,7 +1,8 @@
-"""MediaPipe Face Mesh wrapper: returns pixel-space landmarks for the primary driver."""
+"""MediaPipe Face Landmarker wrapper: returns pixel-space landmarks for the primary driver."""
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional, Tuple
 
 import cv2
@@ -13,7 +14,7 @@ from config import FaceConfig
 @dataclass(frozen=True)
 class FaceLandmarks:
     """Landmarks of one face in PIXEL coordinates."""
-    points: np.ndarray                    # shape (478, 2) with refine_landmarks=True
+    points: np.ndarray                    # shape (478, 2)
     bbox: Tuple[int, int, int, int]       # x1, y1, x2, y2 (clipped to the frame)
 
     @property
@@ -32,54 +33,59 @@ class FaceLandmarks:
 
 @dataclass(frozen=True)
 class FaceDetectionResult:
-    num_faces: int                        # 0, 1 or several
-    primary: Optional[FaceLandmarks]      # the driver (largest face), or None
+    num_faces: int
+    primary: Optional[FaceLandmarks]
 
 
 class FaceDetector:
-    """
-    Wraps MediaPipe Face Mesh (468 landmarks + 10 iris landmarks).
-
-    Driver selection: when several faces are visible, the one with the LARGEST
-    bounding box is the "primary" face. In a car the driver is normally the
-    person closest to a dashboard-mounted camera, hence the biggest face.
-    """
+    """MediaPipe Tasks Face Landmarker wrapper; selects the largest visible face."""
 
     def __init__(self, cfg: FaceConfig) -> None:
         try:
-            # MediaPipe 0.10.33 keeps the legacy Face Mesh module, but no longer
-            # re-exports it as mediapipe.solutions from the top-level package.
-            from mediapipe.python.solutions.face_mesh import FaceMesh
+            import mediapipe as mp
         except ImportError as exc:
             raise RuntimeError(
-                "MediaPipe Face Mesh is unavailable. Run: pip install -r requirements.txt"
+                "MediaPipe is not installed. Run: pip install -r requirements.txt"
             ) from exc
-        self._mesh = FaceMesh(
-            static_image_mode=False,          # video mode: detect once, then track (faster)
-            max_num_faces=cfg.max_faces,
-            refine_landmarks=True,
-            min_detection_confidence=cfg.min_detection_confidence,
+
+        model_path = Path(cfg.model_path)
+        if not model_path.is_file():
+            raise RuntimeError(
+                f"Face Landmarker model not found: {model_path}. "
+                "Run run.ps1 to download the required model."
+            )
+
+        self._mp = mp
+        self._last_timestamp_ms = -1
+        options = mp.tasks.vision.FaceLandmarkerOptions(
+            base_options=mp.tasks.BaseOptions(model_asset_path=str(model_path)),
+            running_mode=mp.tasks.vision.RunningMode.VIDEO,
+            num_faces=cfg.max_faces,
+            min_face_detection_confidence=cfg.min_detection_confidence,
+            min_face_presence_confidence=cfg.min_tracking_confidence,
             min_tracking_confidence=cfg.min_tracking_confidence,
         )
+        self._landmarker = mp.tasks.vision.FaceLandmarker.create_from_options(options)
 
-    def process(self, frame_bgr: np.ndarray) -> FaceDetectionResult:
+    def process(self, frame_bgr: np.ndarray, now: float) -> FaceDetectionResult:
         h, w = frame_bgr.shape[:2]
-        rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)   # MediaPipe expects RGB
-        rgb.flags.writeable = False                         # lets MediaPipe avoid a copy
-        results = self._mesh.process(rgb)
+        rgb = np.ascontiguousarray(cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB))
+        image = self._mp.Image(image_format=self._mp.ImageFormat.SRGB, data=rgb)
 
-        faces = results.multi_face_landmarks
+        timestamp_ms = max(self._last_timestamp_ms + 1, int(now * 1000))
+        self._last_timestamp_ms = timestamp_ms
+        result = self._landmarker.detect_for_video(image, timestamp_ms)
+        faces = result.face_landmarks
         if not faces:
             return FaceDetectionResult(num_faces=0, primary=None)
 
-        scale = np.array([w, h], dtype=np.float64)          # normalised [0,1] -> pixels
-        best: Optional[FaceLandmarks] = None
+        scale = np.array([w, h], dtype=np.float64)
+        candidates = []
         for face in faces:
-            pts = np.array([(lm.x, lm.y) for lm in face.landmark], dtype=np.float64) * scale
-            candidate = FaceLandmarks.from_points(pts, (w, h))
-            if best is None or candidate.area > best.area:
-                best = candidate
-        return FaceDetectionResult(num_faces=len(faces), primary=best)
+            points = np.array([(lm.x, lm.y) for lm in face], dtype=np.float64) * scale
+            candidates.append(FaceLandmarks.from_points(points, (w, h)))
+        primary = max(candidates, key=lambda candidate: candidate.area)
+        return FaceDetectionResult(num_faces=len(candidates), primary=primary)
 
     def close(self) -> None:
-        self._mesh.close()
+        self._landmarker.close()
