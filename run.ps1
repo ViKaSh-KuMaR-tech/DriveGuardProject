@@ -23,7 +23,7 @@ if ($launcher) {
 } else {
     $python = (Get-Command python -ErrorAction Stop).Source
     $versionOutput = & $python --version
-    if ($LASTEXITCODE -ne 0 -or $versionOutput -notmatch "Python 3\.(9|10|11|12)(\.|$)") {
+    if ($LASTEXITCODE -ne 0 -or $versionOutput -notmatch "Python 3\.(9|10|11|12|13)(\.|$)") {
         throw "Python 3.9 through 3.13 is required. Install a supported Python version and try again."
     }
     $pythonArgs = @()
