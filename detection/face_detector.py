@@ -47,17 +47,14 @@ class FaceDetector:
 
     def __init__(self, cfg: FaceConfig) -> None:
         try:
-            import mediapipe as mp
+            # MediaPipe 0.10.33 keeps the legacy Face Mesh module, but no longer
+            # re-exports it as mediapipe.solutions from the top-level package.
+            from mediapipe.python.solutions.face_mesh import FaceMesh
         except ImportError as exc:
             raise RuntimeError(
-                "MediaPipe is not installed. Run: pip install -r requirements.txt"
+                "MediaPipe Face Mesh is unavailable. Run: pip install -r requirements.txt"
             ) from exc
-        if not hasattr(mp, "solutions"):
-            raise RuntimeError(
-                "This MediaPipe version no longer ships the 'solutions' API used here. "
-                "Install the pinned version: pip install mediapipe==0.10.14"
-            )
-        self._mesh = mp.solutions.face_mesh.FaceMesh(
+        self._mesh = FaceMesh(
             static_image_mode=False,          # video mode: detect once, then track (faster)
             max_num_faces=cfg.max_faces,
             refine_landmarks=True,
