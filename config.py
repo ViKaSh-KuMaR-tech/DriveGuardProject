@@ -27,6 +27,7 @@ class CameraConfig:
 
 @dataclass(frozen=True)
 class FaceConfig:
+    model_path: str = str(BASE_DIR / "models" / "face_landmarker.task")
     max_faces: int = 3              # MediaPipe tracks up to this many faces
     min_detection_confidence: float = 0.5
     min_tracking_confidence: float = 0.5
