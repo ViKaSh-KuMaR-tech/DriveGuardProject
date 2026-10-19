@@ -44,6 +44,13 @@ if ($LASTEXITCODE -ne 0) { throw "Could not upgrade pip." }
 & $venvPython -m pip install -r (Join-Path $PSScriptRoot "requirements.txt")
 if ($LASTEXITCODE -ne 0) { throw "Could not install project dependencies." }
 
+$faceModelPath = Join-Path $PSScriptRoot "models\face_landmarker.task"
+if (-not (Test-Path -LiteralPath $faceModelPath)) {
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $faceModelPath) | Out-Null
+    $faceModelUrl = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task"
+    Invoke-WebRequest -Uri $faceModelUrl -OutFile $faceModelPath
+}
+
 $modelPath = Join-Path $PSScriptRoot "models\yolov8n.pt"
 if (-not (Test-Path -LiteralPath $modelPath)) {
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $modelPath) | Out-Null
