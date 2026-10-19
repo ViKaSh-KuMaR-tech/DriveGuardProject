@@ -7,7 +7,11 @@ if ($launcher) {
     $python = $launcher.Source
     $pythonArgs = $null
     foreach ($version in @("3.12", "3.11", "3.10", "3.9")) {
-        & $python "-$version" --version *> $null
+        try {
+            $versionOutput = & $python "-$version" --version 2>$null
+        } catch {
+            continue
+        }
         if ($LASTEXITCODE -eq 0) {
             $pythonArgs = @("-$version")
             break
