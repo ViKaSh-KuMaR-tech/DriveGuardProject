@@ -52,7 +52,7 @@ class DriveGuardPipeline:
 
     def process(self, frame_bgr: np.ndarray, now: float) -> FrameAnalysis:
         h, w = frame_bgr.shape[:2]
-        face = self._face.process(frame_bgr)
+        face = self._face.process(frame_bgr, now)
         landmarks = face.primary.points if face.primary is not None else None
 
         presence = self._presence.update(landmarks is not None, now)
