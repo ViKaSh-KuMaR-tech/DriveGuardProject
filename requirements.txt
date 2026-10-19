@@ -6,8 +6,7 @@ opencv-contrib-python>=4.12,<5.0; python_version >= "3.13"
 # Ultralytics depends on opencv-python; keep it aligned with the contrib build.
 opencv-python>=4.8,<4.11; python_version < "3.13"
 opencv-python>=4.12,<5.0; python_version >= "3.13"
-# 0.10.33 includes the legacy solutions API used by detection/face_detector.py
-# and provides a wheel that installs on Python 3.13.
+# Python 3.13-compatible release; face detection uses the Tasks FaceLandmarker API.
 mediapipe==0.10.33
 ultralytics>=8.3,<9.0
 pyttsx3>=2.90
