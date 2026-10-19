@@ -248,4 +248,4 @@ From PowerShell in the repository folder, run:
 .\run.ps1
 ```
 
-The script creates a local virtual environment, installs the requirements, downloads the default YOLO phone-detection weights if needed, and starts DriveGuard. The first run needs an internet connection. If PowerShell blocks scripts, run it with: `powershell -ExecutionPolicy Bypass -File .\run.ps1`.
+The script creates a local virtual environment, installs the requirements, downloads the MediaPipe Face Landmarker and YOLO phone-detection models if needed, and starts DriveGuard. The first run needs an internet connection. If PowerShell blocks scripts, run it with: `powershell -ExecutionPolicy Bypass -File .\run.ps1`.
