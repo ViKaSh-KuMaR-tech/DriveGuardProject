@@ -17,6 +17,7 @@ import queue
 import shutil
 import subprocess
 import threading
+import time
 from typing import Dict, List, Optional
 
 from config import AudioConfig
@@ -92,6 +93,8 @@ class AudioAlert:
         self._cfg = cfg
         self._queue: "queue.Queue[Optional[str]]" = queue.Queue(maxsize=1)
         self._busy = threading.Event()
+        self._idle = threading.Event()
+        self._idle.set()
         self._muted = False
         self._last_any = float("-inf")
         self._last_by_event: Dict[str, float] = {}
@@ -111,14 +114,22 @@ class AudioAlert:
             return False
 
         self._busy.set()
+        self._idle.clear()
         try:
             self._queue.put_nowait(message)
         except queue.Full:
             self._busy.clear()
+            self._idle.set()
             return False
         self._last_any = now
         self._last_by_event[event] = now
         return True
+
+    def test(self, timeout: float = 20.0) -> bool:
+        """Play a short sample and wait for completion; useful without a camera event."""
+        if not self.request("audio_test", "DriveGuard audio test. Sound is working.", time.monotonic()):
+            return False
+        return self._idle.wait(timeout)
 
     def toggle_mute(self) -> bool:
         self._muted = not self._muted
@@ -153,6 +164,12 @@ class AudioAlert:
             try:
                 speaker.speak(message)
             except Exception as exc:
-                log.warning("Audio alert failed: %s", exc)
+                log.warning("Audio alert failed with %s: %s; trying a beep fallback.", speaker.name, exc)
+                if not isinstance(speaker, _BeepSpeaker):
+                    try:
+                        _BeepSpeaker().speak(message)
+                    except Exception as beep_exc:
+                        log.error("Audio beep fallback failed: %s", beep_exc)
             finally:
                 self._busy.clear()
+                self._idle.set()
