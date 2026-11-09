@@ -25,6 +25,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--model", type=str, help="path to a YOLO .pt model (default from config.py)")
     p.add_argument("--no-phone", action="store_true", help="disable YOLO phone detection")
     p.add_argument("--no-audio", action="store_true", help="disable audio alerts")
+    p.add_argument("--test-audio", action="store_true", help="play a sample alert and exit (no camera required)")
     return p.parse_args()
 
 
@@ -114,6 +115,19 @@ def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     args = parse_args()
     cfg = apply_overrides(CONFIG, args)
+    if args.test_audio:
+        audio = AudioAlert(cfg.audio)
+        try:
+            if not cfg.audio.enabled:
+                log.error("Audio is disabled. Remove --no-audio and set AudioConfig.enabled = True.")
+                return 2
+            if not audio.test():
+                log.error("Audio test did not complete. Check Windows volume and the audio backend log.")
+                return 1
+            log.info("Audio test finished. If you heard the sample, sound is working.")
+            return 0
+        finally:
+            audio.close()
     try:
         return run(cfg, enable_phone=not args.no_phone)
     except ModelNotFoundError as exc:
