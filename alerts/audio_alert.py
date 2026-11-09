@@ -55,8 +55,11 @@ class _BeepSpeaker:
     def speak(self, text: str) -> None:
         try:
             import winsound
-            winsound.Beep(1000, 300)
-            winsound.Beep(1400, 300)
+            # Repeated two-tone pattern is more noticeable than a single chirp.
+            for _ in range(3):
+                winsound.Beep(1000, 350)
+                winsound.Beep(1400, 350)
+                winsound.Beep(1000, 350)
         except ImportError:
             print("\a", end="", flush=True)   # terminal bell
 
@@ -91,7 +94,7 @@ class AudioAlert:
 
     def __init__(self, cfg: AudioConfig) -> None:
         self._cfg = cfg
-        self._queue: "queue.Queue[Optional[str]]" = queue.Queue(maxsize=1)
+        self._queue: "queue.Queue[Optional[tuple[str, str]]]" = queue.Queue(maxsize=1)
         self._busy = threading.Event()
         self._idle = threading.Event()
         self._idle.set()
@@ -116,7 +119,7 @@ class AudioAlert:
         self._busy.set()
         self._idle.clear()
         try:
-            self._queue.put_nowait(message)
+            self._queue.put_nowait((event, message))
         except queue.Full:
             self._busy.clear()
             self._idle.set()
@@ -161,13 +164,18 @@ class AudioAlert:
             message = self._queue.get()
             if message is None:
                 break
+            event, text = message
             try:
-                speaker.speak(message)
+                if event == "drowsy":
+                    log.info("Drowsiness detected: playing wake-up warning beeps.")
+                    _BeepSpeaker().speak(text)
+                else:
+                    speaker.speak(text)
             except Exception as exc:
                 log.warning("Audio alert failed with %s: %s; trying a beep fallback.", speaker.name, exc)
-                if not isinstance(speaker, _BeepSpeaker):
+                if event != "drowsy" and not isinstance(speaker, _BeepSpeaker):
                     try:
-                        _BeepSpeaker().speak(message)
+                        _BeepSpeaker().speak(text)
                     except Exception as beep_exc:
                         log.error("Audio beep fallback failed: %s", beep_exc)
             finally:
