@@ -243,7 +243,7 @@ If you find DriveGuard interesting, consider starring the repository and sharing
 
 ## Local event database
 
-DriveGuard stores safety-event history in a local SQLite database at `data/driveguard.db`. SQLite is included with Python, so no database server or extra package is required. Each newly detected event is recorded once when it becomes active, with a UTC timestamp, event type, risk level, safety score, and configured message. The application does not store camera frames. If the database cannot save an event, the error is logged and camera monitoring continues.
+DriveGuard stores safety-event history in a local SQLite database at `data/driveguard.db`. SQLite is included with Python, so no database server or extra package is required. Each newly detected event is recorded once when it becomes active, with a UTC timestamp, event type, risk level, safety score, and configured message. The application does not store camera frames. Click **LAST TRIP RECORD** in the camera window to open the most recently saved event (timestamp, event, risk level, and score). If the database cannot save an event, the error is logged and camera monitoring continues.
 
 The database file is created automatically at startup. Keep it with the project to retain history between runs; back it up before deleting or moving the project.
 
