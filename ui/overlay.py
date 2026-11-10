@@ -118,6 +118,12 @@ def _draw_footer(frame: np.ndarray, a: "FrameAnalysis", fps: float, muted: bool,
     cv2.putText(frame, f"FPS {fps:4.1f}", (w - 100, 20),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, WHITE, 1, cv2.LINE_AA)
 
+    # Clickable control, handled by main.py through the OpenCV mouse callback.
+    cv2.rectangle(frame, (w - 155, 29), (w - 8, 59), (35, 95, 105), -1)
+    cv2.rectangle(frame, (w - 155, 29), (w - 8, 59), (90, 190, 190), 1)
+    cv2.putText(frame, "LAST TRIP RECORD", (w - 149, 49),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.42, WHITE, 1, cv2.LINE_AA)
+
     if a.safety.alert_message:
         text = f"WARNING: {a.safety.alert_message}"
         size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.65, 2)[0]
