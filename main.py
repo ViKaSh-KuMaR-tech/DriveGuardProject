@@ -15,6 +15,7 @@ from config import CONFIG, Config
 from detection.phone_detector import ModelNotFoundError
 from pipeline import DriveGuardPipeline
 from ui.overlay import draw_overlay
+from storage.event_store import EventStore
 
 log = logging.getLogger("driveguard")
 
@@ -59,6 +60,8 @@ def open_camera(cfg: Config) -> cv2.VideoCapture:
 def run(cfg: Config, enable_phone: bool) -> int:
     pipeline = DriveGuardPipeline(cfg, enable_phone=enable_phone)   # may raise (e.g. missing model)
     audio = AudioAlert(cfg.audio)
+    event_store = EventStore()
+    previous_events = set()
     cap = None
     show_landmarks = cfg.ui.show_landmarks
     fps = 0.0
@@ -80,6 +83,16 @@ def run(cfg: Config, enable_phone: bool) -> int:
 
             now = time.monotonic()
             analysis = pipeline.process(frame, now)
+
+            current_events = set(analysis.safety.active_events)
+            for event in current_events - previous_events:
+                event_store.record_event(
+                    event_type=event,
+                    risk_level=analysis.safety.level.name,
+                    safety_score=analysis.safety.safety_score,
+                    message=cfg.safety.messages.get(event),
+                )
+            previous_events = current_events
 
             if analysis.safety.alert_event and analysis.safety.alert_message:
                 audio.request(analysis.safety.alert_event, analysis.safety.alert_message, now)
@@ -107,6 +120,7 @@ def run(cfg: Config, enable_phone: bool) -> int:
         if cap is not None:
             cap.release()
         audio.close()
+        event_store.close()
         pipeline.close()
         cv2.destroyAllWindows()
 
