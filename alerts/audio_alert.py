@@ -81,12 +81,12 @@ class _BeepSpeaker:
                 wav_file.writeframes(samples)
             winsound.PlaySound(
                 wav_buffer.getvalue(),
-                winsound.SND_MEMORY | winsound.SND_SYNC,
+                winsound.SND_MEMORY,
             )
         except Exception as exc:
             log.warning("Windows audio playback failed (%s); using terminal bell.", exc)
             try:
-                print("\\a", end="", flush=True)
+                print("\a", end="", flush=True)
             except Exception as bell_exc:
                 log.error("Terminal bell fallback failed: %s", bell_exc)
 
