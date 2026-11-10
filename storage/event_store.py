@@ -50,5 +50,25 @@ class EventStore:
         except sqlite3.Error:
             log.exception("Could not save safety event to %s", self.path)
 
+    def get_last_event(self):
+        """Return the most recent stored event, or None when history is empty."""
+        try:
+            row = self._connection.execute(
+                """SELECT occurred_at, event_type, risk_level, safety_score, message
+                   FROM safety_events ORDER BY id DESC LIMIT 1"""
+            ).fetchone()
+            if row is None:
+                return None
+            return {
+                "occurred_at": row[0],
+                "event_type": row[1],
+                "risk_level": row[2],
+                "safety_score": row[3],
+                "message": row[4],
+            }
+        except sqlite3.Error:
+            log.exception("Could not read event history from %s", self.path)
+            return None
+
     def close(self) -> None:
         self._connection.close()
