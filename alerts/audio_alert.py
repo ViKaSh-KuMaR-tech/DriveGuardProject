@@ -18,6 +18,7 @@ import shutil
 import subprocess
 import threading
 import time
+import tempfile
 from typing import Dict, List, Optional
 
 from config import AudioConfig
@@ -79,10 +80,28 @@ class _BeepSpeaker:
                 wav_file.setsampwidth(2)
                 wav_file.setframerate(sample_rate)
                 wav_file.writeframes(samples)
-            winsound.PlaySound(
-                wav_buffer.getvalue(),
-                winsound.SND_MEMORY,
-            )
+            # SoundPlayer routes the WAV through the normal Windows output
+            # endpoint, including when winsound.PlaySound returns silently.
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_wav:
+                temp_wav.write(wav_buffer.getvalue())
+                wav_path = temp_wav.name
+            try:
+                escaped_path = wav_path.replace("'", "''")
+                command = (
+                    "$player = New-Object System.Media.SoundPlayer "
+                    + "'" + escaped_path + "'; $player.PlaySync()"
+                )
+                subprocess.run(
+                    ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command],
+                    check=True, timeout=12,
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+            finally:
+                try:
+                    import os
+                    os.remove(wav_path)
+                except OSError:
+                    pass
         except Exception as exc:
             log.warning("Windows audio playback failed (%s); using terminal bell.", exc)
             try:
