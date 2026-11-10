@@ -7,7 +7,11 @@ terminal bell is a fallback if the beep device is unavailable.
 """
 from __future__ import annotations
 
+import io
 import logging
+import math
+import struct
+import wave
 import platform
 import queue
 import shutil
@@ -51,13 +55,40 @@ class _BeepSpeaker:
     def speak(self, text: str) -> None:
         try:
             import winsound
-            # Repeated two-tone pattern is more noticeable than a single chirp.
+
+            # Route synthesized tones through the normal Windows audio device.
+            sample_rate = 22050
+            samples = bytearray()
+            pattern = ((880, 0.24), (0, 0.10), (1320, 0.24),
+                       (0, 0.10), (880, 0.24), (0, 0.22))
             for _ in range(3):
-                winsound.Beep(1000, 350)
-                winsound.Beep(1400, 350)
-                winsound.Beep(1000, 350)
-        except ImportError:
-            print("\a", end="", flush=True)   # terminal bell
+                for frequency, duration in pattern:
+                    count = int(sample_rate * duration)
+                    for i in range(count):
+                        if frequency:
+                            envelope = min(1.0, i / 220, (count - i) / 220)
+                            value = int(10000 * envelope * math.sin(
+                                2 * math.pi * frequency * i / sample_rate))
+                        else:
+                            value = 0
+                        samples.extend(struct.pack("<h", value))
+
+            wav_buffer = io.BytesIO()
+            with wave.open(wav_buffer, "wb") as wav_file:
+                wav_file.setnchannels(1)
+                wav_file.setsampwidth(2)
+                wav_file.setframerate(sample_rate)
+                wav_file.writeframes(samples)
+            winsound.PlaySound(
+                wav_buffer.getvalue(),
+                winsound.SND_MEMORY | winsound.SND_SYNC,
+            )
+        except Exception as exc:
+            log.warning("Windows audio playback failed (%s); using terminal bell.", exc)
+            try:
+                print("\\a", end="", flush=True)
+            except Exception as bell_exc:
+                log.error("Terminal bell fallback failed: %s", bell_exc)
 
 
 def _create_speaker(cfg: AudioConfig):
