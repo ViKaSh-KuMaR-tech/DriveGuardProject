@@ -9,6 +9,7 @@ import time
 from dataclasses import replace
 
 import cv2
+import numpy as np
 
 from alerts.audio_alert import AudioAlert
 from config import CONFIG, Config
@@ -57,6 +58,28 @@ def open_camera(cfg: Config) -> cv2.VideoCapture:
     return cap
 
 
+def _show_last_record(record) -> None:
+    """Display the latest SQLite event in a small OpenCV window."""
+    panel = np.zeros((220, 560, 3), dtype=np.uint8)
+    cv2.putText(panel, "LATEST SAVED EVENT", (20, 35),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (120, 220, 220), 2, cv2.LINE_AA)
+    if record is None:
+        lines = ["No event records have been saved yet."]
+    else:
+        lines = [
+            f"Time (UTC): {record['occurred_at']}",
+            f"Event: {record['event_type']}",
+            f"Risk level: {record['risk_level']}",
+            f"Safety score: {record['safety_score']}",
+            f"Message: {(record['message'] or '')[:48]}",
+        ]
+    for index, line in enumerate(lines):
+        cv2.putText(panel, line, (20, 78 + index * 27),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.52, (245, 245, 245), 1, cv2.LINE_AA)
+    cv2.namedWindow("Last Trip Record", cv2.WINDOW_AUTOSIZE)
+    cv2.imshow("Last Trip Record", panel)
+
+
 def run(cfg: Config, enable_phone: bool) -> int:
     pipeline = DriveGuardPipeline(cfg, enable_phone=enable_phone)   # may raise (e.g. missing model)
     audio = AudioAlert(cfg.audio)
@@ -67,8 +90,18 @@ def run(cfg: Config, enable_phone: bool) -> int:
     fps = 0.0
     last_t = time.monotonic()
     failures = 0
+    mouse_state = {"clicked": False, "width": cfg.camera.width}
+
+    def on_mouse(event, x, y, flags, state):
+        if (event == cv2.EVENT_LBUTTONDOWN
+                and x >= state["width"] - 155 and x <= state["width"] - 8
+                and 29 <= y <= 59):
+            state["clicked"] = True
+
     try:
         cap = open_camera(cfg)
+        cv2.namedWindow(cfg.ui.window_name)
+        cv2.setMouseCallback(cfg.ui.window_name, on_mouse, mouse_state)
         log.info("Running. Press 'q' in the video window to quit.")
         while True:
             ok, frame = cap.read()
@@ -81,6 +114,7 @@ def run(cfg: Config, enable_phone: bool) -> int:
                 continue
             failures = 0
 
+            mouse_state["width"] = frame.shape[1]
             now = time.monotonic()
             analysis = pipeline.process(frame, now)
 
@@ -106,6 +140,9 @@ def run(cfg: Config, enable_phone: bool) -> int:
             cv2.imshow(cfg.ui.window_name, frame)
 
             key = cv2.waitKey(1) & 0xFF
+            if mouse_state["clicked"]:
+                mouse_state["clicked"] = False
+                _show_last_record(event_store.get_last_event())
             if key in (ord("q"), 27):               # q or Esc
                 break
             elif key == ord("c"):
