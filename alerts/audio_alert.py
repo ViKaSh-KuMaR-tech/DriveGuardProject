@@ -1,13 +1,9 @@
 """
 Non-blocking audio alerts.
 
-Speech runs in a background worker thread, so the video loop never waits for it.
-We deliberately avoid PyAudio (it needs a C toolchain / PortAudio on many
-machines) and use the operating system's own text-to-speech instead:
-
-    Windows : pyttsx3 (SAPI5)          macOS : `say`
-    Linux   : spd-say / espeak-ng / espeak, else pyttsx3
-    Fallback: beeps (winsound on Windows, terminal bell elsewhere)
+Warnings play a repeating alternating-tone beep in a background worker thread,
+so the video loop never waits for audio. On Windows this uses winsound; the
+terminal bell is a fallback if the beep device is unavailable.
 """
 from __future__ import annotations
 
@@ -158,7 +154,7 @@ class AudioAlert:
 
     # ------------------------------------------------------------------ worker
     def _worker(self) -> None:
-        speaker = _create_speaker(self._cfg)
+        speaker = _BeepSpeaker()
         log.info("Audio alerts using backend: %s", speaker.name)
         while True:
             message = self._queue.get()
@@ -166,18 +162,13 @@ class AudioAlert:
                 break
             event, text = message
             try:
-                if event == "drowsy":
-                    log.info("Drowsiness detected: playing wake-up warning beeps.")
-                    _BeepSpeaker().speak(text)
-                else:
-                    speaker.speak(text)
+                speaker.speak(text)
             except Exception as exc:
-                log.warning("Audio alert failed with %s: %s; trying a beep fallback.", speaker.name, exc)
-                if event != "drowsy" and not isinstance(speaker, _BeepSpeaker):
-                    try:
-                        _BeepSpeaker().speak(text)
-                    except Exception as beep_exc:
-                        log.error("Audio beep fallback failed: %s", beep_exc)
+                log.error("Warning beep failed for %s: %s", event, exc)
+                try:
+                    print("\\a", end="", flush=True)
+                except Exception as bell_exc:
+                    log.error("Terminal bell fallback failed: %s", bell_exc)
             finally:
                 self._busy.clear()
                 self._idle.set()
